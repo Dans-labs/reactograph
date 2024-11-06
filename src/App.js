@@ -159,6 +159,20 @@ function App() {
       keywordContainer.appendChild(suggestionsBox);
       searchContainer.appendChild(keywordContainer);
 
+      // Create container for advanced search inputs
+      const advancedContainer = document.createElement('div');
+      advancedContainer.style.display = 'none'; // Hidden by default
+      
+      // Create Advanced toggle button
+      const advancedButton = document.createElement('button');
+      advancedButton.textContent = 'Advanced';
+      advancedButton.style.padding = '5px 10px';
+      advancedButton.style.marginRight = '20px';
+      advancedButton.style.cursor = 'pointer';
+      advancedButton.style.backgroundColor = '#f0f0f0';
+      advancedButton.style.border = '1px solid #ddd';
+      advancedButton.style.borderRadius = '4px';
+
       // Create subject search input
       const subjectInput = document.createElement('input');
       subjectInput.style.padding = '5px';
@@ -177,60 +191,24 @@ function App() {
       objectInput.style.width = '150px';
       objectInput.placeholder = 'Search objects...';
 
-      // Add event listeners for real-time filtering
-      const handleSearch = () => {
-        const keyword = keywordInput.value;
-        const subject = subjectInput.value;
-        const predicate = predicateInput.value;
-        const object = objectInput.value;
-        
-        // Construct query parameters
-        const params = new URLSearchParams(new URL(apiUrl).search);
-        if (keyword) {
-          params.append('q', keyword);       // For filtering
-        }
-        if (subject) params.append('subject', subject);
-        if (predicate) params.append('predicate', predicate);
-        if (object) params.append('object', object);
-        
-        // Append search parameters to existing apiUrl
-        const searchUrl = `${apiUrl.split('?')[0]}?${params.toString()}`;
-        
-        fetch(searchUrl)
-          .then(response => response.json())
-          .then(data => {
-            // Update the graph with new data
-            Graph
-              .graphData(data)
-              .nodeColor(node => node.color)
-              .linkWidth(1)
-              .linkDirectionalParticles(2)
-              .linkDirectionalParticleWidth(2)
-              .nodeLabel(node => node.label || node.id)
-              .onNodeClick(node => {
-                // Your existing node click handler if any
-              });
-          })
-          .catch(error => console.error('Error:', error));
-      };
-
-      // Add input event listeners with debounce
-      let debounceTimeout;
-      const debounceDelay = 300; // milliseconds
-
-      [keywordInput, subjectInput, predicateInput, objectInput].forEach(input => {
-        input.addEventListener('input', () => {
-          clearTimeout(debounceTimeout);
-          debounceTimeout = setTimeout(handleSearch, debounceDelay);
-        });
+      // Add toggle functionality
+      advancedButton.addEventListener('click', () => {
+        const isHidden = advancedContainer.style.display === 'none';
+        advancedContainer.style.display = isHidden ? 'flex' : 'none';
+        advancedButton.style.backgroundColor = isHidden ? '#e0e0e0' : '#f0f0f0';
       });
 
-      // Append all elements to the container
-      searchContainer.appendChild(keywordInput);
-      searchContainer.appendChild(subjectInput);
-      searchContainer.appendChild(predicateInput);
-      searchContainer.appendChild(objectInput);
-      
+      // Add inputs to advanced container
+      advancedContainer.style.gap = '10px';
+      advancedContainer.appendChild(subjectInput);
+      advancedContainer.appendChild(predicateInput);
+      advancedContainer.appendChild(objectInput);
+
+      // Add elements to search container in correct order
+      searchContainer.appendChild(keywordContainer);
+      searchContainer.appendChild(advancedButton);
+      searchContainer.appendChild(advancedContainer);
+
       // Add container to document
       document.body.appendChild(searchContainer);
 
