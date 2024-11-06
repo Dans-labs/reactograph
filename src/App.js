@@ -40,7 +40,8 @@ function App() {
 
       const keywordInput = document.createElement('input');
       keywordInput.style.padding = '5px';
-      keywordInput.style.width = '150px';
+      keywordInput.style.width = '300px';
+      keywordInput.style.fontSize = '14px';
       keywordInput.placeholder = 'Search keywords...';
       keywordInput.style.marginRight = '20px';
 
@@ -94,7 +95,39 @@ function App() {
                     suggestionItem.addEventListener('click', () => {
                       keywordInput.value = value;
                       suggestionsBox.style.display = 'none';
-                      handleSearch(); // Trigger search with selected suggestion
+                      
+                      // Modified handleSearch to include keyword as 'q' parameter
+                      const keyword = value;
+                      const subject = subjectInput.value;
+                      const predicate = predicateInput.value;
+                      const object = objectInput.value;
+                      
+                      const params = new URLSearchParams(new URL(apiUrl).search);
+                      if (keyword) {
+                        params.append('q', keyword);       // For filtering
+                      }
+                      if (subject) params.append('subject', subject);
+                      if (predicate) params.append('predicate', predicate);
+                      if (object) params.append('object', object);
+                      
+                      const searchUrl = `${apiUrl.split('?')[0]}?${params.toString()}`;
+                      
+                      fetch(searchUrl)
+                        .then(response => response.json())
+                        .then(data => {
+                          // Update the graph with new data
+                          Graph
+                            .graphData(data)
+                            .nodeColor(node => node.color)
+                            .linkWidth(1)
+                            .linkDirectionalParticles(2)
+                            .linkDirectionalParticleWidth(2)
+                            .nodeLabel(node => node.label || node.id)
+                            .onNodeClick(node => {
+                              // Your existing node click handler if any
+                            });
+                        })
+                        .catch(error => console.error('Error:', error));
                     });
                     
                     suggestionsBox.appendChild(suggestionItem);
@@ -153,7 +186,9 @@ function App() {
         
         // Construct query parameters
         const params = new URLSearchParams(new URL(apiUrl).search);
-        if (keyword) params.append('suggest', keyword);
+        if (keyword) {
+          params.append('q', keyword);       // For filtering
+        }
         if (subject) params.append('subject', subject);
         if (predicate) params.append('predicate', predicate);
         if (object) params.append('object', object);
@@ -164,8 +199,17 @@ function App() {
         fetch(searchUrl)
           .then(response => response.json())
           .then(data => {
-            // Update your graph with the new data
-            // Implement your graph update logic here
+            // Update the graph with new data
+            Graph
+              .graphData(data)
+              .nodeColor(node => node.color)
+              .linkWidth(1)
+              .linkDirectionalParticles(2)
+              .linkDirectionalParticleWidth(2)
+              .nodeLabel(node => node.label || node.id)
+              .onNodeClick(node => {
+                // Your existing node click handler if any
+              });
           })
           .catch(error => console.error('Error:', error));
       };
