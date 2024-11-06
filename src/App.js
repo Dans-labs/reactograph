@@ -124,7 +124,31 @@ function App() {
                             .linkDirectionalParticleWidth(2)
                             .nodeLabel(node => node.label || node.id)
                             .onNodeClick(node => {
-                              // Your existing node click handler if any
+                              node.clickurl = "https://dataverse.harvard.edu/dataverse/harvard?q=" + node.id;
+                              if (node.clickurl) {
+                                // Open URL in new tab
+                                window.open(node.clickurl, '_blank', 'noopener,noreferrer');
+                              }
+                            })
+                            .nodeCanvasObject((node, ctx, globalScale) => {
+                              // Add visual indicator for clickable nodes
+                              if (node.clickurl) {
+                                const label = node.label || node.id;
+                                const fontSize = 12/globalScale;
+                                ctx.font = `${fontSize}px Sans-Serif`;
+                                ctx.fillStyle = node.color || 'rgba(255, 255, 255, 0.8)';
+                                ctx.textAlign = 'center';
+                                ctx.textBaseline = 'middle';
+                                ctx.fillText(label, node.x, node.y);
+                                
+                                // Add underline to indicate clickable
+                                const textWidth = ctx.measureText(label).width;
+                                ctx.beginPath();
+                                ctx.moveTo(node.x - textWidth/2, node.y + fontSize/2);
+                                ctx.lineTo(node.x + textWidth/2, node.y + fontSize/2);
+                                ctx.strokeStyle = node.color || 'rgba(255, 255, 255, 0.8)';
+                                ctx.stroke();
+                              }
                             });
                         })
                         .catch(error => console.error('Error:', error));
