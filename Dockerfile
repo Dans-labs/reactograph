@@ -4,6 +4,7 @@ WORKDIR /app
 
 COPY yarn.lock package.json ./
 
+RUN apk add jq curl 
 RUN yarn install
 RUN npm install 3d-force-graph three three-spritetext
 
