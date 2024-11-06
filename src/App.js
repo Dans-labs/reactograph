@@ -22,70 +22,82 @@ function App() {
       Graph.d3Force('charge').strength(-120);
       console.log("API URL:", process.env.REACT_APP_DATA_API);
 
-      // Add search/filter functionality
-      const searchInput = document.createElement('input');
-      searchInput.style.position = 'absolute';
-      searchInput.style.top = '20px';
-      searchInput.style.left = '20px';
-      searchInput.style.zIndex = '1';
-      searchInput.style.padding = '5px';
-      searchInput.placeholder = 'Search all nodes...';
-      document.body.appendChild(searchInput);
+      // Create container for search inputs
+      const searchContainer = document.createElement('div');
+      searchContainer.style.position = 'absolute';
+      searchContainer.style.top = '20px';
+      searchContainer.style.left = '50%';
+      searchContainer.style.transform = 'translateX(-50%)';
+      searchContainer.style.zIndex = '1';
+      searchContainer.style.display = 'flex';
+      searchContainer.style.flexDirection = 'row';
+      searchContainer.style.gap = '10px';
+      searchContainer.style.alignItems = 'center';
 
-      // Add debounce function to prevent too many API calls
-      const debounce = (func, wait) => {
-        let timeout;
-        return function executedFunction(...args) {
-          const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-          };
-          clearTimeout(timeout);
-          timeout = setTimeout(later, wait);
-        };
-      };
+      // Create subject search input
+      const subjectInput = document.createElement('input');
+      subjectInput.style.padding = '5px';
+      subjectInput.style.width = '150px';
+      subjectInput.placeholder = 'Search subjects...';
 
-      // Function to fetch and update graph data
-      const fetchGraphData = async (query) => {
-        try {
-          const apiUrl = process.env.REACT_APP_DATA_API || '/data/custom.json';
-          const response = await fetch(`${apiUrl}?q=${encodeURIComponent(query)}`);
-          const newData = await response.json();
-          
-          Graph.graphData({
-            nodes: newData.nodes.map(node => ({
-              ...node,
-              hidden: false
-            })),
-            links: newData.links
-          });
-        } catch (error) {
-          console.error('Error fetching graph data:', error);
-        }
-      };
+      // Create predicate search input
+      const predicateInput = document.createElement('input');
+      predicateInput.style.padding = '5px';
+      predicateInput.style.width = '150px';
+      predicateInput.placeholder = 'Search predicates...';
 
-      // Debounced version of fetchGraphData (wait 300ms between calls)
-      const debouncedFetch = debounce(fetchGraphData, 300);
+      // Create object search input
+      const objectInput = document.createElement('input');
+      objectInput.style.padding = '5px';
+      objectInput.style.width = '150px';
+      objectInput.placeholder = 'Search objects...';
 
-      // Modified search input handler
-      searchInput.addEventListener('input', (e) => {
-        const searchTerm = e.target.value.toLowerCase();
+      // Add event listeners for real-time filtering
+      const handleSearch = () => {
+        const subject = subjectInput.value;
+        const predicate = predicateInput.value;
+        const object = objectInput.value;
         
-        if (searchTerm.length >= 2) {
-          // Fetch new data if search term is at least 2 characters
-          debouncedFetch(searchTerm);
-        } else if (searchTerm.length === 0) {
-          // Reset to initial data when search is cleared
-          fetchGraphData('');
-        }
+        // Construct query parameters
+        const params = new URLSearchParams(new URL(apiUrl).search);
+        if (subject) params.append('subject', subject);
+        if (predicate) params.append('predicate', predicate);
+        if (object) params.append('object', object);
+        
+        // Append search parameters to existing apiUrl
+        const searchUrl = `${apiUrl.split('?')[0]}?${params.toString()}`;
+        
+        fetch(searchUrl)
+          .then(response => response.json())
+          .then(data => {
+            // Update your graph with the new data
+            // Implement your graph update logic here
+          })
+          .catch(error => console.error('Error:', error));
+      };
+
+      // Add input event listeners with debounce
+      let debounceTimeout;
+      const debounceDelay = 300; // milliseconds
+
+      [subjectInput, predicateInput, objectInput].forEach(input => {
+        input.addEventListener('input', () => {
+          clearTimeout(debounceTimeout);
+          debounceTimeout = setTimeout(handleSearch, debounceDelay);
+        });
       });
 
-      // Initial data load
-      fetchGraphData('');
+      // Append all elements to the container
+      searchContainer.appendChild(subjectInput);
+      searchContainer.appendChild(predicateInput);
+      searchContainer.appendChild(objectInput);
+      
+      // Add container to document
+      document.body.appendChild(searchContainer);
 
       // Cleanup on unmount
       return () => {
-        document.body.removeChild(searchInput);
+        document.body.removeChild(searchContainer);
       };
     });
   }, []);
