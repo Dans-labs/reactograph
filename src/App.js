@@ -124,7 +124,9 @@ function App() {
                             .linkDirectionalParticleWidth(2)
                             .nodeLabel(node => node.label || node.id)
                             .onNodeClick(node => {
-                              node.clickurl = "https://dataverse.harvard.edu/dataverse/harvard?q=" + node.id;
+                              const host = process.env.REACT_APP_HOST || 'https://dataverse.harvard.edu';
+                              const keywordValue = keywordInput.value ? `+${encodeURIComponent(keywordInput.value)}` : '';
+                              node.clickurl = `${host}/dataverse/harvard?q=${encodeURIComponent(node.id)}${keywordValue}`;
                               if (node.clickurl) {
                                 // Open URL in new tab
                                 window.open(node.clickurl, '_blank', 'noopener,noreferrer');
