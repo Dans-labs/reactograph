@@ -212,6 +212,38 @@ function App() {
       // Add container to document
       document.body.appendChild(searchContainer);
 
+      // Add theme toggle button
+      const themeButton = document.createElement('button');
+      themeButton.textContent = '🌓'; // Moon/sun emoji as icon
+      themeButton.style.padding = '5px 10px';
+      themeButton.style.marginRight = '20px';
+      themeButton.style.cursor = 'pointer';
+      themeButton.style.backgroundColor = '#f0f0f0';
+      themeButton.style.border = '1px solid #ddd';
+      themeButton.style.borderRadius = '4px';
+      themeButton.title = 'Toggle dark/light mode';
+
+      let isDarkMode = false;
+      themeButton.addEventListener('click', () => {
+        isDarkMode = !isDarkMode;
+        
+        // Toggle background color
+        document.body.style.backgroundColor = isDarkMode ? '#1a1a1a' : '#ffffff';
+        
+        // Update graph colors
+        Graph
+          .backgroundColor(isDarkMode ? '#1a1a1a' : '#ffffff')
+          .nodeColor(node => isDarkMode ? node.color || '#ffffff' : node.color || '#1a1a1a')
+          .linkColor(isDarkMode ? '#ffffff' : '#1a1a1a');
+
+        // Update button appearance
+        themeButton.style.backgroundColor = isDarkMode ? '#333333' : '#f0f0f0';
+        themeButton.style.color = isDarkMode ? '#ffffff' : '#000000';
+      });
+
+      // Add button to container (add it near the start of your container)
+      searchContainer.insertBefore(themeButton, searchContainer.firstChild);
+
       // Cleanup on unmount
       return () => {
         document.body.removeChild(searchContainer);
