@@ -13,6 +13,7 @@ Region | Project  | Funding information | Component |
 Fill .env with variable pointing to your data API.
 Usage:
 ```
+cp .env-sample .env
 docker-compose build
 docker-compose up -d
 ```
