@@ -23,6 +23,16 @@ function App() {
           sprite.color = node.color;
           sprite.textHeight = 8;
           return sprite;
+        })
+        .onNodeClick(node => {
+          const host = process.env.REACT_APP_HOST || 'https://dataverse.harvard.edu';
+          const keywordValue = keywordInput.value ? `+${encodeURIComponent(keywordInput.value)}` : '';
+          node.clickurl = `${host}/dataverse/harvard?q=${encodeURIComponent(node.id)}${keywordValue}`;
+          
+          if (node.clickurl) {
+            // Open URL in new tab
+            window.open(node.clickurl, '_blank', 'noopener,noreferrer');
+          }
         });
 
       // Create keyword input
@@ -333,42 +343,6 @@ function App() {
       searchContainer.insertBefore(themeButton, searchContainer.firstChild);
 
       document.body.appendChild(searchContainer);
-
-      // Add node click functionality to Graph
-      Graph
-        .onNodeClick(node => {
-          const host = process.env.REACT_APP_HOST || 'https://dataverse.harvard.edu';
-          const keywordValue = keywordInput.value ? `+${encodeURIComponent(keywordInput.value)}` : '';
-          node.clickurl = `${host}/dataverse/harvard?q=${encodeURIComponent(node.id)}${keywordValue}`;
-          
-          if (node.clickurl) {
-            // Open URL in new tab
-            window.open(node.clickurl, '_blank', 'noopener,noreferrer');
-          }
-        })
-        .nodeCanvasObject((node, ctx, globalScale) => {
-          // Draw node consistently
-          const label = node.label || node.id;
-          const fontSize = 12/globalScale;
-          ctx.font = `${fontSize}px Sans-Serif`;
-          ctx.fillStyle = node.color || 'rgba(255, 255, 255, 0.8)';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          
-          // Draw node background
-          const textWidth = ctx.measureText(label).width;
-          const bckgDimensions = [textWidth, fontSize].map(n => n + fontSize * 0.2);
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-          ctx.fillRect(
-            node.x - bckgDimensions[0] / 2,
-            node.y - bckgDimensions[1] / 2,
-            ...bckgDimensions
-          );
-          
-          // Draw text
-          ctx.fillStyle = node.color || '#000000';
-          ctx.fillText(label, node.x, node.y);
-        });
     });
   }, []);
 
