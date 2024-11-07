@@ -5,6 +5,11 @@ import SpriteText from 'three-spritetext';
 
 function App() {
   useEffect(() => {
+    // Update document title
+    document.title = 'ReactoGraph for Linked Data';
+  }, []); // Empty dependency array means this runs once on mount
+
+  useEffect(() => {
     import('3d-force-graph').then(ForceGraph3D => {
       const apiUrl = process.env.REACT_APP_DATA_API || './data/custom.json';
       const Graph = ForceGraph3D.default()
