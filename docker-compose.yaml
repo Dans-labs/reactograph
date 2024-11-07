@@ -14,6 +14,7 @@ services:
       - REACT_APP_DATA_API=${REACT_APP_DATA_API} #/data/d.json
       - REACT_APP_HOST=${REACT_APP_HOST}
       - REACT_APP_DEFAULT_TERM=${REACT_APP_DEFAULT_TERM}
+      - "REACT_APP_DATASET_URL"
     networks:
       - default
       - traefik
