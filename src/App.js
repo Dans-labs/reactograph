@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import logo from './logo.svg';
 import './App.css';
 import SpriteText from 'three-spritetext';
+import * as THREE from 'three';
 
 function App() {
   useEffect(() => {
@@ -24,8 +25,19 @@ function App() {
           return sprite;
         });
 
-      Graph.d3Force('charge').strength(-120);
-      console.log("API URL:", process.env.REACT_APP_DATA_API);
+      // Create keyword input
+      const keywordInput = document.createElement('input');
+      keywordInput.style.padding = '5px';
+      keywordInput.style.width = '300px';
+      keywordInput.style.fontSize = '14px';
+      keywordInput.placeholder = 'Search keywords...';
+      keywordInput.style.marginRight = '20px';
+
+      // Set default value for the keyword input
+      keywordInput.value = 'africa'; // Set default term to "africa"
+
+      // Append the keyword input to the document (or wherever appropriate)
+      document.body.appendChild(keywordInput);
 
       // Create container for search inputs
       const searchContainer = document.createElement('div');
@@ -43,13 +55,6 @@ function App() {
       const keywordContainer = document.createElement('div');
       keywordContainer.style.position = 'relative';
 
-      const keywordInput = document.createElement('input');
-      keywordInput.style.padding = '5px';
-      keywordInput.style.width = '300px';
-      keywordInput.style.fontSize = '14px';
-      keywordInput.placeholder = 'Search keywords...';
-      keywordInput.style.marginRight = '20px';
-
       // Create suggestions popup
       const suggestionsBox = document.createElement('div');
       suggestionsBox.style.position = 'absolute';
@@ -66,6 +71,27 @@ function App() {
       suggestionsBox.style.zIndex = '1000';
       suggestionsBox.style.fontSize = '14px';
       suggestionsBox.style.lineHeight = '1.4';
+
+      // Function to handle search
+      const handleSearch = () => {
+        const keyword = keywordInput.value;
+        const params = new URLSearchParams();
+
+        if (keyword) params.append('q', keyword); // Assuming 'q' is the parameter for the keyword
+
+        const searchUrl = `${apiUrl}?${params.toString()}`;
+
+        fetch(searchUrl)
+          .then(response => response.json())
+          .then(data => {
+            // Update the graph with new data
+            Graph.graphData(data); // Assuming this method updates the graph with new data
+          })
+          .catch(error => console.error('Error fetching data:', error));
+      };
+
+      // Trigger the search to render the graph based on the default keyword
+      handleSearch(); // Call the search function to update the graph
 
       // Add suggestion fetching logic
       let suggestionTimeout;
@@ -86,7 +112,6 @@ function App() {
                     suggestionItem.textContent = value;
                     suggestionItem.style.padding = '8px';
                     suggestionItem.style.cursor = 'pointer';
-                    suggestionItem.style.hover = '#f0f0f0';
                     
                     // Add hover effect
                     suggestionItem.addEventListener('mouseover', () => {
@@ -100,65 +125,7 @@ function App() {
                     suggestionItem.addEventListener('click', () => {
                       keywordInput.value = value;
                       suggestionsBox.style.display = 'none';
-                      
-                      // Modified handleSearch to include keyword as 'q' parameter
-                      const keyword = value;
-                      const subject = subjectInput.value;
-                      const predicate = predicateInput.value;
-                      const object = objectInput.value;
-                      
-                      const params = new URLSearchParams(new URL(apiUrl).search);
-                      if (keyword) {
-                        params.append('q', keyword);       // For filtering
-                      }
-                      if (subject) params.append('subject', subject);
-                      if (predicate) params.append('predicate', predicate);
-                      if (object) params.append('object', object);
-                      
-                      const searchUrl = `${apiUrl.split('?')[0]}?${params.toString()}`;
-                      
-                      fetch(searchUrl)
-                        .then(response => response.json())
-                        .then(data => {
-                          // Update the graph with new data
-                          Graph
-                            .graphData(data)
-                            .nodeColor(node => node.color)
-                            .linkWidth(1)
-                            .linkDirectionalParticles(2)
-                            .linkDirectionalParticleWidth(2)
-                            .nodeLabel(node => node.label || node.id)
-                            .onNodeClick(node => {
-                              const host = process.env.REACT_APP_HOST || 'https://dataverse.harvard.edu';
-                              const keywordValue = keywordInput.value ? `+${encodeURIComponent(keywordInput.value)}` : '';
-                              node.clickurl = `${host}/dataverse/harvard?q=${encodeURIComponent(node.id)}${keywordValue}`;
-                              if (node.clickurl) {
-                                // Open URL in new tab
-                                window.open(node.clickurl, '_blank', 'noopener,noreferrer');
-                              }
-                            })
-                            .nodeCanvasObject((node, ctx, globalScale) => {
-                              // Add visual indicator for clickable nodes
-                              if (node.clickurl) {
-                                const label = node.label || node.id;
-                                const fontSize = 12/globalScale;
-                                ctx.font = `${fontSize}px Sans-Serif`;
-                                ctx.fillStyle = node.color || 'rgba(255, 255, 255, 0.8)';
-                                ctx.textAlign = 'center';
-                                ctx.textBaseline = 'middle';
-                                ctx.fillText(label, node.x, node.y);
-                                
-                                // Add underline to indicate clickable
-                                const textWidth = ctx.measureText(label).width;
-                                ctx.beginPath();
-                                ctx.moveTo(node.x - textWidth/2, node.y + fontSize/2);
-                                ctx.lineTo(node.x + textWidth/2, node.y + fontSize/2);
-                                ctx.strokeStyle = node.color || 'rgba(255, 255, 255, 0.8)';
-                                ctx.stroke();
-                              }
-                            });
-                        })
-                        .catch(error => console.error('Error:', error));
+                      handleSearch(); // Call handleSearch to update the graph with the selected suggestion
                     });
                     
                     suggestionsBox.appendChild(suggestionItem);
@@ -189,6 +156,7 @@ function App() {
       keywordContainer.appendChild(keywordInput);
       keywordContainer.appendChild(suggestionsBox);
       searchContainer.appendChild(keywordContainer);
+      document.body.appendChild(searchContainer); // Append the search container to the body
 
       // Create container for advanced search inputs
       const advancedContainer = document.createElement('div');
@@ -275,12 +243,65 @@ function App() {
       // Add button to container (add it near the start of your container)
       searchContainer.insertBefore(themeButton, searchContainer.firstChild);
 
+      // Create zoom-in button
+      const zoomInButton = document.createElement('button');
+      zoomInButton.textContent = 'Zoom In';
+      zoomInButton.style.padding = '5px 10px';
+      zoomInButton.style.marginRight = '10px';
+      zoomInButton.style.cursor = 'pointer';
+
+      // Create zoom-out button
+      const zoomOutButton = document.createElement('button');
+      zoomOutButton.textContent = 'Zoom Out';
+      zoomOutButton.style.padding = '5px 10px';
+      zoomOutButton.style.cursor = 'pointer';
+
+      // Initial scale factor
+      let scaleFactor = 1;
+
+      // Function to update graph rendering based on scale
+      const updateGraphScale = () => {
+        // Assuming you have a method to update the graph's scale
+        Graph.setScale(scaleFactor); // Replace with your actual method to set scale
+        // You may need to re-render the graph or update its layout
+        Graph.refresh(); // Call this if your library requires a refresh after scaling
+      };
+
+      // Zoom in functionality
+      zoomInButton.addEventListener('click', () => {
+        scaleFactor *= 1.2; // Increase scale by 20%
+        updateGraphScale();
+      });
+
+      // Zoom out functionality
+      zoomOutButton.addEventListener('click', () => {
+        scaleFactor /= 1.2; // Decrease scale by 20%
+        updateGraphScale();
+      });
+
+      // Add buttons to the search container
+      //searchContainer.appendChild(zoomInButton);
+      //searchContainer.appendChild(zoomOutButton);
+
       // Cleanup on unmount
       return () => {
         document.body.removeChild(searchContainer);
       };
     });
   }, []);
+
+  useEffect(() => {
+    // Initialize scene, camera, and renderer
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.getElementById('3d-graph').appendChild(renderer.domElement);
+
+    // Set initial camera position
+    camera.position.z = 5; // Adjust as needed
+  }, []);
+
 
   return (
     <div className="App">
