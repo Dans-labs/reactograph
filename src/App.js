@@ -62,6 +62,105 @@ function App() {
       searchContainer.style.gap = '10px';
       searchContainer.style.alignItems = 'center';
 
+      // Create fields button and popup
+      const fieldsButton = document.createElement('button');
+      fieldsButton.textContent = '📑 Fields';  // Document emoji
+      fieldsButton.style.padding = '5px 10px';
+      fieldsButton.style.cursor = 'pointer';
+      fieldsButton.style.marginRight = '10px';
+      fieldsButton.title = 'Select Search Fields';
+
+      // Create fields popup container
+      const fieldsPopup = document.createElement('div');
+      fieldsPopup.style.position = 'absolute';
+      fieldsPopup.style.top = '100%';
+      fieldsPopup.style.left = '0';
+      fieldsPopup.style.backgroundColor = 'white';
+      fieldsPopup.style.border = '1px solid #ddd';
+      fieldsPopup.style.borderRadius = '4px';
+      fieldsPopup.style.padding = '10px';
+      fieldsPopup.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
+      fieldsPopup.style.display = 'none';
+      fieldsPopup.style.zIndex = '1000';
+
+      // Get API URL from environment variable
+      const predicate_apiUrl = process.env.REACT_APP_DATA_API || './data/custom.json';
+
+      // Remove trailing slash if it exists
+      const cleanApiUrl = predicate_apiUrl.replace(/\/$/, '');
+
+      // Fetch predicates from API and create checkboxes
+      fetch(`${cleanApiUrl}/predicate`)
+        .then(response => response.json())
+        .then(predicates => {
+          predicates.forEach(predicate => {
+            const label = document.createElement('label');
+            label.style.display = 'block';
+            label.style.marginBottom = '5px';
+            
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.value = predicate;
+            checkbox.checked = predicate.toLowerCase().includes('keyword');
+            checkbox.style.marginRight = '5px';
+            
+            // Add immediate change event listener
+            checkbox.addEventListener('change', () => {
+                handleSearch(); // Immediate search on checkbox change
+                Graph.refresh(); // Force graph refresh
+            });
+            
+            label.appendChild(checkbox);
+            label.appendChild(document.createTextNode(predicate.charAt(0).toUpperCase() + predicate.slice(1)));
+            fieldsPopup.appendChild(label);
+          });
+
+          // Initial search with default fields
+          handleSearch();
+          Graph.refresh(); // Force initial refresh
+        })
+        .catch(error => {
+          console.error('Error fetching predicates:', error);
+          // Fallback to default fields if API call fails
+          const defaultFields = ['title', 'description', 'keyword'];
+          defaultFields.forEach(field => {
+            const label = document.createElement('label');
+            label.style.display = 'block';
+            label.style.marginBottom = '5px';
+            
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.value = field;
+            checkbox.checked = field === 'keyword'; // Only check if it's the keyword field
+            checkbox.style.marginRight = '5px';
+            
+            label.appendChild(checkbox);
+            label.appendChild(document.createTextNode(field.charAt(0).toUpperCase() + field.slice(1)));
+            fieldsPopup.appendChild(label);
+          });
+        });
+
+      // Toggle fields popup
+      let isFieldsVisible = false;
+      fieldsButton.addEventListener('click', () => {
+        isFieldsVisible = !isFieldsVisible;
+        fieldsPopup.style.display = isFieldsVisible ? 'block' : 'none';
+        fieldsButton.style.backgroundColor = isFieldsVisible ? '#e0e0e0' : '';
+      });
+
+      // Close fields popup when clicking outside
+      document.addEventListener('click', (e) => {
+        if (!fieldsButton.contains(e.target) && !fieldsPopup.contains(e.target)) {
+          fieldsPopup.style.display = 'none';
+          isFieldsVisible = false;
+          fieldsButton.style.backgroundColor = '';
+        }
+      });
+
+      // Add fields button and popup to the container
+      searchContainer.appendChild(fieldsButton);
+      searchContainer.appendChild(fieldsPopup);
+
       // Create keyword container for input and suggestions
       const keywordContainer = document.createElement('div');
       keywordContainer.style.position = 'relative';
@@ -176,12 +275,23 @@ function App() {
         if (predicate) params.append('predicate', predicate);
         if (object) params.append('object', object);
 
+        // Get all checked fields
+        const checkedFields = Array.from(fieldsPopup.querySelectorAll('input[type="checkbox"]:checked'))
+          .map(checkbox => checkbox.value);
+        
+        // Add each checked field as a separate parameter
+        checkedFields.forEach((field, index) => {
+          params.append('field', field);
+        });
+
         const searchUrl = `${apiUrl}?${params.toString()}`;
 
         fetch(searchUrl)
             .then(response => response.json())
             .then(data => {
                 Graph.graphData(data);
+                // Force graph refresh
+                Graph.refresh();
             })
             .catch(error => console.error('Error:', error));
       };
@@ -337,7 +447,21 @@ function App() {
                   button.style.border = isDarkTheme ? '1px solid #444' : '1px solid #ddd';
               }
           });
+
+          // Update fields button and popup
+          updateTheme();
       });
+
+      // Add this function before the theme toggle event listener
+      const updateTheme = () => {
+        fieldsButton.style.backgroundColor = isDarkTheme ? '#333333' : '#ffffff';
+        fieldsButton.style.color = isDarkTheme ? '#ffffff' : '#000000';
+        fieldsButton.style.border = isDarkTheme ? '1px solid #444' : '1px solid #ddd';
+        
+        fieldsPopup.style.backgroundColor = isDarkTheme ? '#333333' : '#ffffff';
+        fieldsPopup.style.border = isDarkTheme ? '1px solid #444' : '1px solid #ddd';
+        fieldsPopup.style.color = isDarkTheme ? '#ffffff' : '#000000';
+      };
 
       // Add theme button to container (add it before other buttons)
       searchContainer.insertBefore(themeButton, searchContainer.firstChild);
