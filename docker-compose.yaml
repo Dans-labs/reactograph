@@ -15,6 +15,11 @@ services:
       - REACT_APP_HOST=${REACT_APP_HOST}
       - REACT_APP_DEFAULT_TERM=${REACT_APP_DEFAULT_TERM}
       - "REACT_APP_DATASET_URL"
+      - "REACT_APP_LOGIN_TEXT"
+      - "REACT_APP_LOGGED_IN_TEXT"
+      - "REACT_APP_OAUTH_RESPONSE_TYPE"
+      - "REACT_APP_OAUTH_SCOPE"
+      - "REACT_APP_OAUTH_PROMPT"
     networks:
       - default
       - traefik
