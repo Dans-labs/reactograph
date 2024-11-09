@@ -104,12 +104,6 @@ function App() {
             checkbox.checked = predicate.toLowerCase().includes('keyword');
             checkbox.style.marginRight = '5px';
             
-            // Add immediate change event listener
-            checkbox.addEventListener('change', () => {
-                handleSearch(); // Immediate search on checkbox change
-                Graph.refresh(); // Force graph refresh
-            });
-            
             label.appendChild(checkbox);
             label.appendChild(document.createTextNode(predicate.charAt(0).toUpperCase() + predicate.slice(1)));
             fieldsPopup.appendChild(label);
@@ -452,8 +446,9 @@ function App() {
           updateTheme();
       });
 
-      // Add this function before the theme toggle event listener
+      // Add this function before any theme-related code
       const updateTheme = () => {
+        // Fields button and popup
         fieldsButton.style.backgroundColor = isDarkTheme ? '#333333' : '#ffffff';
         fieldsButton.style.color = isDarkTheme ? '#ffffff' : '#000000';
         fieldsButton.style.border = isDarkTheme ? '1px solid #444' : '1px solid #ddd';
@@ -461,10 +456,157 @@ function App() {
         fieldsPopup.style.backgroundColor = isDarkTheme ? '#333333' : '#ffffff';
         fieldsPopup.style.border = isDarkTheme ? '1px solid #444' : '1px solid #ddd';
         fieldsPopup.style.color = isDarkTheme ? '#ffffff' : '#000000';
+
+        // Login button
+        loginButton.style.backgroundColor = isDarkTheme ? '#333333' : '#ffffff';
+        loginButton.style.color = isDarkTheme ? '#ffffff' : '#000000';
+        loginButton.style.border = isDarkTheme ? '1px solid #444' : '1px solid #ddd';
+
+        // Advanced filters container if visible
+        if (advancedFilters) {
+            advancedFilters.style.backgroundColor = isDarkTheme ? '#333333' : '#ffffff';
+            advancedFilters.style.border = isDarkTheme ? '1px solid #444' : '1px solid #ddd';
+        }
+
+        // Suggestions box if it exists
+        if (suggestionsBox) {
+            suggestionsBox.style.backgroundColor = isDarkTheme ? '#333333' : '#ffffff';
+            suggestionsBox.style.border = isDarkTheme ? '1px solid #444' : '1px solid #ddd';
+        }
       };
 
       // Add theme button to container (add it before other buttons)
       searchContainer.insertBefore(themeButton, searchContainer.firstChild);
+
+      // Create login button container
+      const loginContainer = document.createElement('div');
+      loginContainer.style.position = 'absolute';
+      loginContainer.style.top = '20px';
+      loginContainer.style.right = '20px';
+      loginContainer.style.zIndex = '1000';
+
+      // Get button text from environment variables
+      const loginText = process.env.REACT_APP_LOGIN_TEXT || '🔑 Login with Google';
+      const loggedInText = process.env.REACT_APP_LOGGED_IN_TEXT || '👤 Logged In';
+
+      // Create login button
+      const loginButton = document.createElement('button');
+      loginButton.textContent = loginText;
+      loginButton.style.padding = '8px 16px';
+      loginButton.style.cursor = 'pointer';
+      loginButton.style.display = 'flex';
+      loginButton.style.alignItems = 'center';
+      loginButton.style.gap = '8px';
+      loginButton.style.backgroundColor = '#ffffff';
+      loginButton.style.border = '1px solid #ddd';
+      loginButton.style.borderRadius = '4px';
+      loginButton.style.fontSize = '14px';
+
+      // Handle logout
+      const handleLogout = () => {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('token_type');
+        localStorage.removeItem('expires_in');
+        localStorage.removeItem('scope');
+        localStorage.removeItem('login_time');
+        localStorage.removeItem('user_email');
+        localStorage.removeItem('user_name');
+        loginButton.textContent = loginText;
+        loginButton.onclick = handleLogin;
+      };
+
+      // Handle Google OAuth callback
+      const handleCallback = () => {
+        const hash = window.location.hash;
+        if (hash) {
+          const params = new URLSearchParams(hash.substring(1));
+          const accessToken = params.get('access_token');
+          const tokenType = params.get('token_type');
+          const expiresIn = params.get('expires_in');
+          const scope = params.get('scope');
+          
+          if (accessToken) {
+            // Store the token and related info
+            localStorage.setItem('access_token', accessToken);
+            localStorage.setItem('token_type', tokenType);
+            localStorage.setItem('expires_in', expiresIn);
+            localStorage.setItem('scope', scope);
+            localStorage.setItem('login_time', Date.now().toString());
+
+            // Clean up the URL by removing the hash
+            window.history.pushState('', document.title, window.location.pathname);
+            
+            // Update button state
+            loginButton.textContent = loggedInText;
+            loginButton.onclick = handleLogout;
+
+            // Fetch user profile with the token
+            fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+              headers: {
+                'Authorization': `${tokenType} ${accessToken}`
+              }
+            })
+            .then(response => response.json())
+            .then(data => {
+              localStorage.setItem('user_email', data.email);
+              localStorage.setItem('user_name', data.name);
+              // Update button text with user name
+              loginButton.textContent = `👤 ${data.name}`;
+            })
+            .catch(error => {
+              console.error('Error fetching user info:', error);
+              loginButton.textContent = loggedInText;
+            });
+          }
+        }
+      };
+
+      // Check for callback on page load
+      if (window.location.hash) {
+        handleCallback();
+      }
+
+      // Handle Google OAuth
+      const handleLogin = () => {
+        const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
+        const responseType = process.env.REACT_APP_OAUTH_RESPONSE_TYPE || 'token';
+        const scope = process.env.REACT_APP_OAUTH_SCOPE || 'email profile';
+        const prompt = process.env.REACT_APP_OAUTH_PROMPT || 'select_account';
+        const redirectUri = window.location.origin;
+        
+        // Google OAuth endpoint
+        const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+        const params = new URLSearchParams({
+          client_id: clientId,
+          redirect_uri: redirectUri,
+          response_type: responseType,
+          scope: scope,
+          prompt: prompt
+        });
+        
+        authUrl.search = params.toString();
+        window.location.href = authUrl.toString();
+      };
+
+      // Check if user is already logged in
+      const checkLoginStatus = () => {
+        const token = localStorage.getItem('access_token');
+        if (token) {
+          // Update button to show logged in state
+          loginButton.textContent = loggedInText;
+          loginButton.onclick = handleLogout;
+        } else {
+          loginButton.textContent = loginText;
+          loginButton.onclick = handleLogin;
+        }
+      };
+
+      // Add click handler to login button
+      loginButton.onclick = handleLogin;
+
+      // Append login button to container and container to document
+      loginContainer.appendChild(loginButton);
+      document.body.appendChild(loginContainer);
 
       document.body.appendChild(searchContainer);
     });
