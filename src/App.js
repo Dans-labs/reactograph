@@ -17,6 +17,43 @@ function App() {
     const googleApiUrl = process.env.REACT_APP_GOOGLE_API_URL || 'https://www.googleapis.com/oauth2/v2/userinfo';
 
     import('3d-force-graph').then(ForceGraph3D => {
+      // Declare highlight state variables in the correct scope
+      const highlightNodes = new Set();
+      const highlightLinks = new Set();
+      let selectedNode = null;
+
+      // Create Cancel button (initially hidden)
+      const cancelButton = document.createElement('button');
+      cancelButton.textContent = '❌ Cancel';  // Cross mark emoji
+      cancelButton.style.padding = '5px 10px';
+      cancelButton.style.cursor = 'pointer';
+      cancelButton.style.marginLeft = '10px';
+      cancelButton.style.display = 'none'; // Hidden by default
+      cancelButton.title = 'Cancel Selection';
+
+      // Cancel button click handler
+      cancelButton.addEventListener('click', () => {
+        // Clear highlights and show all nodes
+        highlightNodes.clear();
+        highlightLinks.clear();
+        selectedNode = null;
+
+        Graph
+          .nodeVisibility(node => true)
+          .linkVisibility(link => true)
+          .nodeColor(node => node.color)
+          .linkColor(link => link.color || '#ffffff')
+          .nodeOpacity(1)
+          .linkOpacity(0.2)
+          .linkWidth(1);
+
+        Graph.refresh();
+        
+        // Hide cancel button
+        cancelButton.style.display = 'none';
+      });
+
+      // Initialize the Graph
       const Graph = ForceGraph3D.default()
         (document.getElementById('3d-graph'))
         .jsonUrl(cleanApiUrl)
@@ -29,15 +66,85 @@ function App() {
           return sprite;
         })
         .onNodeClick(node => {
+          // Show cancel button when nodes are selected
+          cancelButton.style.display = 'inline-block';
+          
+          // Clear previous highlights
+          highlightNodes.clear();
+          highlightLinks.clear();
+          
+          if (selectedNode === node) {
+            // If clicking the same node, show all nodes again
+            selectedNode = null;
+            const { nodes, links } = Graph.graphData();
+            Graph
+              .nodeVisibility(node => true)
+              .linkVisibility(link => true)
+              .nodeColor(node => node.color)
+              .linkColor(link => link.color || '#ffffff')
+              .nodeOpacity(1)
+              .linkOpacity(0.2)
+              .linkWidth(1);
+              
+            // Hide cancel button only when deselecting
+            cancelButton.style.display = 'none';
+          } else {
+            // Add selected node
+            selectedNode = node;
+            highlightNodes.add(node);
+
+            // Get the graph data
+            const { nodes, links } = Graph.graphData();
+
+            // Add all nodes and links connected to the selected node
+            links.forEach(link => {
+              if (link.source === node || link.target === node) {
+                highlightLinks.add(link);
+                highlightNodes.add(link.source);
+                highlightNodes.add(link.target);
+              }
+            });
+
+            // Update visibility and colors
+            Graph
+              .nodeVisibility(node => highlightNodes.has(node))
+              .linkVisibility(link => highlightLinks.has(link))
+              .nodeColor(node => node.color)
+              .linkColor(link => link.color || '#ffffff')
+              .nodeOpacity(1)
+              .linkOpacity(0.2)
+              .linkWidth(link => highlightLinks.has(link) ? 2 : 1);
+          }
+
+          // Force graph refresh
+          Graph.refresh();
+        })
+        .onNodeRightClick(node => {
+          // Handle right-click to open URL
           const host = process.env.REACT_APP_HOST || 'https://dataverse.harvard.edu';
           const keywordValue = keywordInput.value ? `+${encodeURIComponent(keywordInput.value)}` : '';
           node.clickurl = `${host}/dataverse/harvard?q=${encodeURIComponent(node.id)}${keywordValue}`;
           
           if (node.clickurl) {
-            // Open URL in new tab
             window.open(node.clickurl, '_blank', 'noopener,noreferrer');
           }
         });
+
+      // Optional: Add double-click to clear selection
+      document.getElementById('3d-graph').addEventListener('dblclick', () => {
+        highlightNodes.clear();
+        highlightLinks.clear();
+        selectedNode = null;
+
+        Graph
+          .nodeColor(node => node.color)
+          .linkColor(link => link.color || '#ffffff')
+          .nodeOpacity(1)
+          .linkOpacity(0.2)
+          .linkWidth(1);
+
+        Graph.refresh();
+      });
 
       // Create keyword input
       const keywordInput = document.createElement('input');
@@ -140,19 +247,21 @@ function App() {
 
       // Toggle fields popup
       let isFieldsVisible = false;
-      fieldsButton.addEventListener('click', () => {
+      fieldsButton.addEventListener('contextmenu', (e) => {
+        e.preventDefault(); // Prevent the default context menu
         isFieldsVisible = !isFieldsVisible;
         fieldsPopup.style.display = isFieldsVisible ? 'block' : 'none';
         fieldsButton.style.backgroundColor = isFieldsVisible ? '#e0e0e0' : '';
       });
 
       // Close fields popup when clicking outside
-      document.addEventListener('click', (e) => {
+      document.addEventListener('contextmenu', (e) => {
         if (!fieldsButton.contains(e.target) && !fieldsPopup.contains(e.target)) {
           fieldsPopup.style.display = 'none';
           isFieldsVisible = false;
           fieldsButton.style.backgroundColor = '';
         }
+        e.preventDefault(); // Prevent the default context menu
       });
 
       // Add fields button and popup to the container
@@ -393,6 +502,7 @@ function App() {
       searchContainer.appendChild(zoomOutButton);
       searchContainer.appendChild(advancedButton);
       searchContainer.appendChild(advancedFilters);
+      searchContainer.appendChild(cancelButton);
 
       // Create theme toggle button
       const themeButton = document.createElement('button');
@@ -458,7 +568,16 @@ function App() {
           });
 
           // Update fields button and popup
-          updateTheme();
+          const updateTheme = () => {
+            // Fields button and popup
+            fieldsButton.style.backgroundColor = isDarkTheme ? '#333333' : '#ffffff';
+            fieldsButton.style.color = isDarkTheme ? '#ffffff' : '#000000';
+            fieldsButton.style.border = isDarkTheme ? '1px solid #444' : '1px solid #ddd';
+            
+            fieldsPopup.style.backgroundColor = isDarkTheme ? '#333333' : '#ffffff';
+            fieldsPopup.style.border = isDarkTheme ? '1px solid #444' : '1px solid #ddd';
+            fieldsPopup.style.color = isDarkTheme ? '#ffffff' : '#000000';
+          };
       });
 
       // Add this function before any theme-related code
@@ -488,6 +607,11 @@ function App() {
             suggestionsBox.style.backgroundColor = isDarkTheme ? '#333333' : '#ffffff';
             suggestionsBox.style.border = isDarkTheme ? '1px solid #444' : '1px solid #ddd';
         }
+
+        // Update cancel button
+        cancelButton.style.backgroundColor = isDarkTheme ? '#333333' : '#ffffff';
+        cancelButton.style.color = isDarkTheme ? '#ffffff' : '#000000';
+        cancelButton.style.border = isDarkTheme ? '1px solid #444' : '1px solid #ddd';
       };
 
       // Add theme button to container (add it before other buttons)
