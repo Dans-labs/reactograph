@@ -20,6 +20,7 @@ services:
       - "REACT_APP_OAUTH_RESPONSE_TYPE"
       - "REACT_APP_OAUTH_SCOPE"
       - "REACT_APP_OAUTH_PROMPT"
+      - "REACT_APP_GOOGLE_API_URL"
     networks:
       - default
       - traefik

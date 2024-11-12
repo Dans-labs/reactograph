@@ -11,11 +11,15 @@ function App() {
   }, []); // Empty dependency array means this runs once on mount
 
   useEffect(() => {
+    // Get API URLs from environment variables and clean them
+    const predicate_apiUrl = process.env.REACT_APP_DATA_API || './data/custom.json';
+    const cleanApiUrl = predicate_apiUrl.replace(/\/$/, '');
+    const googleApiUrl = process.env.REACT_APP_GOOGLE_API_URL || 'https://www.googleapis.com/oauth2/v2/userinfo';
+
     import('3d-force-graph').then(ForceGraph3D => {
-      const apiUrl = process.env.REACT_APP_DATA_API || './data/custom.json';
       const Graph = ForceGraph3D.default()
         (document.getElementById('3d-graph'))
-        .jsonUrl(apiUrl)
+        .jsonUrl(cleanApiUrl)
         .nodeAutoColorBy('group')
         .nodeThreeObject(node => {
           const sprite = new SpriteText(node.id);
@@ -83,14 +87,14 @@ function App() {
       fieldsPopup.style.display = 'none';
       fieldsPopup.style.zIndex = '1000';
 
-      // Get API URL from environment variable
-      const predicate_apiUrl = process.env.REACT_APP_DATA_API || './data/custom.json';
-
-      // Remove trailing slash if it exists
-      const cleanApiUrl = predicate_apiUrl.replace(/\/$/, '');
-
       // Fetch predicates from API and create checkboxes
-      fetch(`${cleanApiUrl}/predicate`)
+      fetch(`${cleanApiUrl}/predicate`, {
+        headers: {
+          ...(localStorage.getItem('jwt_token') ? {
+            'Authorization': `Bearer ${localStorage.getItem('jwt_token')}`
+          } : {})
+        }
+      })
         .then(response => response.json())
         .then(predicates => {
           predicates.forEach(predicate => {
@@ -278,9 +282,16 @@ function App() {
           params.append('field', field);
         });
 
-        const searchUrl = `${apiUrl}?${params.toString()}`;
+        const searchUrl = `${cleanApiUrl}?${params.toString()}`;
 
-        fetch(searchUrl)
+        // Add JWT token to request if available
+        const headers = {};
+        const jwtToken = localStorage.getItem('jwt_token');
+        if (jwtToken) {
+          headers['Authorization'] = `Bearer ${jwtToken}`;
+        }
+
+        fetch(searchUrl, { headers })
             .then(response => response.json())
             .then(data => {
                 Graph.graphData(data);
@@ -293,27 +304,32 @@ function App() {
       // Trigger the search to render the graph based on the default keyword
       handleSearch(); // Call the search function to update the graph
 
-      // Add suggestion fetching logic
+      // Add suggestion fetching logic with JWT
       let suggestionTimeout;
       keywordInput.addEventListener('input', () => {
         clearTimeout(suggestionTimeout);
         suggestionTimeout = setTimeout(() => {
           const keyword = keywordInput.value.trim();
           if (keyword.length > 0) {
-            fetch(`${apiUrl}?suggest=${encodeURIComponent(keyword)}`)
+            // Add JWT token to suggestions request
+            const headers = {};
+            const jwtToken = localStorage.getItem('jwt_token');
+            if (jwtToken) {
+              headers['Authorization'] = `Bearer ${jwtToken}`;
+            }
+
+            fetch(`${cleanApiUrl}?suggest=${encodeURIComponent(keyword)}`, { headers })
               .then(response => response.json())
               .then(suggestions => {
                 suggestionsBox.innerHTML = '';
                 if (suggestions.length > 0) {
                   suggestions.forEach(suggestion => {
                     const suggestionItem = document.createElement('div');
-                    // Extract value from the suggestion object
                     const value = suggestion.value.split('@')[0]; // Remove language tag if present
                     suggestionItem.textContent = value;
                     suggestionItem.style.padding = '8px';
                     suggestionItem.style.cursor = 'pointer';
                     
-                    // Add hover effect
                     suggestionItem.addEventListener('mouseover', () => {
                       suggestionItem.style.backgroundColor = '#f0f0f0';
                     });
@@ -321,11 +337,10 @@ function App() {
                       suggestionItem.style.backgroundColor = 'white';
                     });
                     
-                    // Handle suggestion click
                     suggestionItem.addEventListener('click', () => {
                       keywordInput.value = value;
                       suggestionsBox.style.display = 'none';
-                      handleSearch(); // Call handleSearch to update the graph with the selected suggestion
+                      handleSearch(); // Call handleSearch with JWT token
                     });
                     
                     suggestionsBox.appendChild(suggestionItem);
@@ -504,15 +519,18 @@ function App() {
 
       // Handle logout
       const handleLogout = () => {
+        // Clear all auth data
         localStorage.removeItem('access_token');
         localStorage.removeItem('token_type');
-        localStorage.removeItem('expires_in');
-        localStorage.removeItem('scope');
-        localStorage.removeItem('login_time');
         localStorage.removeItem('user_email');
         localStorage.removeItem('user_name');
+        localStorage.removeItem('jwt_token');
+        
         loginButton.textContent = loginText;
         loginButton.onclick = handleLogin;
+
+        // Refresh graph data without token
+        handleSearch();
       };
 
       // Handle Google OAuth callback
@@ -522,40 +540,73 @@ function App() {
           const params = new URLSearchParams(hash.substring(1));
           const accessToken = params.get('access_token');
           const tokenType = params.get('token_type');
-          const expiresIn = params.get('expires_in');
-          const scope = params.get('scope');
           
           if (accessToken) {
-            // Store the token and related info
-            localStorage.setItem('access_token', accessToken);
-            localStorage.setItem('token_type', tokenType);
-            localStorage.setItem('expires_in', expiresIn);
-            localStorage.setItem('scope', scope);
-            localStorage.setItem('login_time', Date.now().toString());
-
-            // Clean up the URL by removing the hash
-            window.history.pushState('', document.title, window.location.pathname);
+            console.log('Google OAuth token received'); // Debug log
             
-            // Update button state
-            loginButton.textContent = loggedInText;
-            loginButton.onclick = handleLogout;
-
-            // Fetch user profile with the token
-            fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+            // First, get user email from Google
+            fetch(googleApiUrl, {
               headers: {
                 'Authorization': `${tokenType} ${accessToken}`
               }
             })
             .then(response => response.json())
+            .then(userData => {
+              console.log('Google user data received:', userData.email); // Debug log
+              
+              // Store user info
+              localStorage.setItem('user_email', userData.email);
+              localStorage.setItem('user_name', userData.name);
+
+              // Now get JWT token from your API using the email
+              return fetch(`${cleanApiUrl}/auth/token`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  email: userData.email,
+                  google_token: accessToken,
+                  token_type: tokenType
+                })
+              });
+            })
+            .then(response => {
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+              return response.json();
+            })
             .then(data => {
-              localStorage.setItem('user_email', data.email);
-              localStorage.setItem('user_name', data.name);
-              // Update button text with user name
-              loginButton.textContent = `👤 ${data.name}`;
+              console.log('Server response:', data); // Debug log
+              
+              if (data && data.access_token) {
+                // Store JWT token and token type
+                localStorage.setItem('jwt_token', data.access_token);
+                localStorage.setItem('token_type', data.token_type || 'Bearer');
+                console.log('JWT token stored:', data.access_token); // Debug log
+                
+                // Update UI
+                loginButton.textContent = `👤 ${localStorage.getItem('user_name')}`;
+                loginButton.onclick = handleLogout;
+
+                // Clean up URL
+                window.history.pushState('', document.title, window.location.pathname);
+
+                // Refresh graph data with new token
+                handleSearch();
+              } else {
+                console.error('Invalid token response:', data); // Debug log
+                throw new Error('Invalid token response from server');
+              }
             })
             .catch(error => {
-              console.error('Error fetching user info:', error);
-              loginButton.textContent = loggedInText;
+              console.error('Full authentication error:', error);
+              console.error('Error details:', {
+                message: error.message,
+                stack: error.stack
+              });
+              loginButton.textContent = loginText;
             });
           }
         }
