@@ -1,0 +1,12 @@
+REACT_APP_DATA_API=http://localhost:8011/ #./data/d.json
+REACT_APP_GOOGLE_API_URL=https://www.googleapis.com/oauth2/v2/userinfo
+REACT_APP_HOST=https://dataverse.harvard.edu
+REACT_APP_DATASET_URL=https://dataverse.harvard.edu
+REACT_APP_DEFAULT_TERM=Africa
+REACT_APP_LOGIN_TEXT=Login
+REACT_APP_LOGGED_IN_TEXT="Logged In"
+REACT_APP_OAUTH_RESPONSE_TYPE=token
+REACT_APP_GOOGLE_CLIENT_ID=92538080xxxx
+REACT_APP_OAUTH_SCOPE=email profile openid
+REACT_APP_OAUTH_PROMPT=select_account
+#REACT_APP_DATA_API=http://sparqlmuse:8000/

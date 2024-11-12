@@ -14,6 +14,9 @@ Fill .env with variable pointing to your data API.
 Usage:
 ```
 cp .env-sample .env
+```
+Open and fill in .env your Google Client ID in variable REACT_APP_GOOGLE_CLIENT_ID. Run build and start the application:
+```
 docker-compose build
 docker-compose up -d
 ```
