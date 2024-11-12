@@ -247,21 +247,20 @@ function App() {
 
       // Toggle fields popup
       let isFieldsVisible = false;
-      fieldsButton.addEventListener('contextmenu', (e) => {
-        e.preventDefault(); // Prevent the default context menu
+      fieldsButton.addEventListener('click', (e) => {
+        e.preventDefault();
         isFieldsVisible = !isFieldsVisible;
         fieldsPopup.style.display = isFieldsVisible ? 'block' : 'none';
         fieldsButton.style.backgroundColor = isFieldsVisible ? '#e0e0e0' : '';
       });
 
       // Close fields popup when clicking outside
-      document.addEventListener('contextmenu', (e) => {
+      document.addEventListener('click', (e) => {
         if (!fieldsButton.contains(e.target) && !fieldsPopup.contains(e.target)) {
           fieldsPopup.style.display = 'none';
           isFieldsVisible = false;
           fieldsButton.style.backgroundColor = '';
         }
-        e.preventDefault(); // Prevent the default context menu
       });
 
       // Add fields button and popup to the container
